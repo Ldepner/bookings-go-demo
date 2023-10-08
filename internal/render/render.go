@@ -2,11 +2,12 @@ package render
 
 import (
 	"fmt"
+	"github.com/justinas/nosurf"
 	"html/template"
 	"net/http"
 
-	"github.com/ldepner/bookings/pkg/config"
-	"github.com/ldepner/bookings/pkg/models"
+	"github.com/ldepner/bookings/internal/config"
+	"github.com/ldepner/bookings/internal/models"
 )
 
 var app *config.AppConfig
@@ -15,11 +16,12 @@ func NewTemplates(a *config.AppConfig) {
 	app = a
 }
 
-func AddDefaultData(td *models.TemplateData) *models.TemplateData {
+func AddDefaultData(td *models.TemplateData, r *http.Request) *models.TemplateData {
+	td.CSRFToken = nosurf.Token(r)
 	return td
 }
 
-func RenderTemplate(w http.ResponseWriter, t string, td *models.TemplateData) {
+func RenderTemplate(w http.ResponseWriter, r *http.Request, t string, td *models.TemplateData) {
 	var tc map[string]*template.Template
 	if _, inMap := tc[t]; app.UseCache && !inMap {
 		tc = app.TemplateCache
@@ -30,7 +32,7 @@ func RenderTemplate(w http.ResponseWriter, t string, td *models.TemplateData) {
 	var tmpl *template.Template
 	tmpl = tc[t]
 
-	td = AddDefaultData(td)
+	td = AddDefaultData(td, r)
 	_ = tmpl.Execute(w, td)
 }
 
