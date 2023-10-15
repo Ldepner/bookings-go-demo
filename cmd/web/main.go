@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/gob"
 	"fmt"
+	"github.com/ldepner/bookings/internal/models"
 	"html/template"
 	"log"
 	"net/http"
@@ -19,6 +21,27 @@ var app config.AppConfig
 var session *scs.SessionManager
 
 func main() {
+	err := run()
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(fmt.Sprintf("starting app on port %s", PORT))
+
+	srv := &http.Server{
+		Addr:    PORT,
+		Handler: routes(&app),
+	}
+
+	err = srv.ListenAndServe()
+	log.Fatal(err)
+}
+
+func run() error {
+	// what am I going to store in my session?
+	gob.Register(models.Reservation{})
+
 	app.InProduction = false
 
 	session = scs.New()
@@ -36,13 +59,5 @@ func main() {
 	repo := handlers.NewRepo(&app)
 	handlers.NewHandlers(repo)
 
-	fmt.Println(fmt.Sprintf("starting app on port %s", PORT))
-
-	srv := &http.Server{
-		Addr:    PORT,
-		Handler: routes(&app),
-	}
-
-	err := srv.ListenAndServe()
-	log.Fatal(err)
+	return nil
 }

@@ -91,6 +91,10 @@ func (h *Repository) PostReservation(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+
+	h.App.Session.Put(r.Context(), "reservation", reservation)
+
+	http.Redirect(w, r, "/reservation-summary", http.StatusSeeOther)
 }
 
 func (h *Repository) Availability(w http.ResponseWriter, r *http.Request) {
@@ -134,4 +138,22 @@ func (h *Repository) Generals(w http.ResponseWriter, r *http.Request) {
 
 func (h *Repository) Majors(w http.ResponseWriter, r *http.Request) {
 	render.RenderTemplate(w, r, "majors.html", &models.TemplateData{})
+}
+
+func (h *Repository) ReservationSummary(w http.ResponseWriter, r *http.Request) {
+	reservation, ok := h.App.Session.Get(r.Context(), "reservation").(models.Reservation)
+	if !ok {
+		log.Println("cannot get item from session")
+		h.App.Session.Put(r.Context(), "error", "Can't get reservation from session")
+		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+		return
+	}
+
+	h.App.Session.Remove(r.Context(), "reservation")
+	data := make(map[string]interface{})
+	data["reservation"] = reservation
+
+	render.RenderTemplate(w, r, "reservation-summary.html", &models.TemplateData{
+		Data: data,
+	})
 }
