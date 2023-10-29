@@ -11,7 +11,9 @@ import (
 	"github.com/ldepner/bookings/internal/models"
 	"github.com/ldepner/bookings/internal/render"
 	"html/template"
+	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 	"time"
 )
@@ -27,6 +29,12 @@ func getRoutes() http.Handler {
 	gob.Register(models.Reservation{})
 
 	app.InProduction = false
+
+	infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
+	app.InfoLog = infoLog
+
+	errLog := log.New(os.Stdout, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
+	app.ErrorLog = errLog
 
 	session = scs.New()
 	app.Session = session
@@ -45,7 +53,6 @@ func getRoutes() http.Handler {
 
 	mux := chi.NewRouter()
 	mux.Use(middleware.Recoverer)
-	mux.Use(NoSurf)
 	mux.Use(SessionLoad)
 
 	mux.Get("/", Repo.Home)

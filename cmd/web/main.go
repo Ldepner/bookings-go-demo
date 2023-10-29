@@ -3,10 +3,12 @@ package main
 import (
 	"encoding/gob"
 	"fmt"
+	"github.com/ldepner/bookings/internal/helpers"
 	"github.com/ldepner/bookings/internal/models"
 	"html/template"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/alexedwards/scs/v2"
@@ -19,6 +21,8 @@ const PORT = ":8080"
 
 var app config.AppConfig
 var session *scs.SessionManager
+var infoLog *log.Logger
+var errLog *log.Logger
 
 func main() {
 	err := run()
@@ -44,6 +48,12 @@ func run() error {
 
 	app.InProduction = false
 
+	infoLog = log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
+	app.InfoLog = infoLog
+
+	errLog = log.New(os.Stdout, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
+	app.ErrorLog = errLog
+
 	session = scs.New()
 	app.Session = session
 	session.Lifetime = 24 * time.Hour
@@ -55,6 +65,7 @@ func run() error {
 	app.TemplateCache = tc
 	app.UseCache = false
 	render.NewTemplates(&app)
+	helpers.NewHelpers(&app)
 
 	repo := handlers.NewRepo(&app)
 	handlers.NewHandlers(repo)

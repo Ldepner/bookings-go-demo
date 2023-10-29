@@ -5,6 +5,7 @@ import (
 	"github.com/alexedwards/scs/v2"
 	"github.com/ldepner/bookings/internal/config"
 	"github.com/ldepner/bookings/internal/models"
+	"log"
 	"net/http"
 	"os"
 	"testing"
@@ -19,6 +20,12 @@ func TestMain(m *testing.M) {
 	gob.Register(models.Reservation{})
 
 	testApp.InProduction = false
+
+	infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
+	testApp.InfoLog = infoLog
+
+	errLog := log.New(os.Stdout, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
+	testApp.ErrorLog = errLog
 
 	session = scs.New()
 	testApp.Session = session

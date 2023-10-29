@@ -3,7 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	"github.com/ldepner/bookings/internal/helpers"
 	"net/http"
 
 	"github.com/ldepner/bookings/internal/forms"
@@ -64,7 +64,7 @@ func (h *Repository) PostReservation(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
 
 	if err != nil {
-		log.Println(err)
+		helpers.ServerError(w, err)
 		return
 	}
 
@@ -121,7 +121,8 @@ func (h *Repository) AvailabilityJSON(w http.ResponseWriter, r *http.Request) {
 
 	out, err := json.MarshalIndent(resp, "", "     ")
 	if err != nil {
-		log.Println(err)
+		helpers.ServerError(w, err)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -143,7 +144,7 @@ func (h *Repository) Majors(w http.ResponseWriter, r *http.Request) {
 func (h *Repository) ReservationSummary(w http.ResponseWriter, r *http.Request) {
 	reservation, ok := h.App.Session.Get(r.Context(), "reservation").(models.Reservation)
 	if !ok {
-		log.Println("cannot get item from session")
+		h.App.ErrorLog.Print("Can't get error from session")
 		h.App.Session.Put(r.Context(), "error", "Can't get reservation from session")
 		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 		return
