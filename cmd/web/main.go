@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/gob"
 	"fmt"
+	"github.com/ldepner/bookings/internal/driver"
 	"github.com/ldepner/bookings/internal/helpers"
 	"github.com/ldepner/bookings/internal/models"
 	"html/template"
@@ -25,11 +26,12 @@ var infoLog *log.Logger
 var errLog *log.Logger
 
 func main() {
-	err := run()
+	db, err := run()
 
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer db.SQL.Close()
 
 	fmt.Println(fmt.Sprintf("starting app on port %s", PORT))
 
@@ -42,9 +44,12 @@ func main() {
 	log.Fatal(err)
 }
 
-func run() error {
+func run() (*driver.DB, error) {
 	// what am I going to store in my session?
 	gob.Register(models.Reservation{})
+	gob.Register(models.User{})
+	gob.Register(models.Room{})
+	gob.Register(models.Restriction{})
 
 	app.InProduction = false
 
@@ -55,20 +60,30 @@ func run() error {
 	app.ErrorLog = errLog
 
 	session = scs.New()
-	app.Session = session
 	session.Lifetime = 24 * time.Hour
 	session.Cookie.Persist = true
 	session.Cookie.SameSite = http.SameSiteLaxMode
 	session.Cookie.Secure = app.InProduction
 
+	app.Session = session
+
+	// connect to db
+	log.Println("Connecting to database...")
+	db, err := driver.ConnectSql("host=localhost port=5432 dbname=bookings user=bytedance password=")
+	if err != nil {
+		log.Fatal("Cannot connect to database! Dying...")
+		return nil, err
+	}
+	log.Println("Connected to database.")
+
 	tc := map[string]*template.Template{}
 	app.TemplateCache = tc
 	app.UseCache = false
-	render.NewTemplates(&app)
+	render.NewRenderer(&app)
 	helpers.NewHelpers(&app)
 
-	repo := handlers.NewRepo(&app)
+	repo := handlers.NewRepo(&app, db)
 	handlers.NewHandlers(repo)
 
-	return nil
+	return db, nil
 }

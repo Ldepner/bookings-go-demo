@@ -3,8 +3,13 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/ldepner/bookings/internal/driver"
 	"github.com/ldepner/bookings/internal/helpers"
+	"github.com/ldepner/bookings/internal/repository"
+	"github.com/ldepner/bookings/internal/repository/dbrepo"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/ldepner/bookings/internal/forms"
 
@@ -15,14 +20,16 @@ import (
 
 type Repository struct {
 	App *config.AppConfig
+	DB  repository.DatabaseRepo
 }
 
 var Repo *Repository
 
 // NewRepo creates a new Repository
-func NewRepo(a *config.AppConfig) *Repository {
+func NewRepo(a *config.AppConfig, db *driver.DB) *Repository {
 	return &Repository{
 		App: a,
+		DB:  dbrepo.NewPostgresRepo(db.SQL, a),
 	}
 }
 
@@ -34,7 +41,7 @@ func NewHandlers(r *Repository) {
 func (h *Repository) Home(w http.ResponseWriter, r *http.Request) {
 	remoteIP := r.RemoteAddr
 	h.App.Session.Put(r.Context(), "remote_ip", remoteIP)
-	render.RenderTemplate(w, r, "home.html", &models.TemplateData{})
+	render.Template(w, r, "home.html", &models.TemplateData{})
 }
 
 func (h *Repository) About(w http.ResponseWriter, r *http.Request) {
@@ -44,7 +51,7 @@ func (h *Repository) About(w http.ResponseWriter, r *http.Request) {
 	remoteIP := h.App.Session.GetString(r.Context(), "remote_ip")
 	stringMap["remoteIP"] = remoteIP
 
-	render.RenderTemplate(w, r, "about.html", &models.TemplateData{
+	render.Template(w, r, "about.html", &models.TemplateData{
 		StringMap: stringMap,
 	})
 }
@@ -54,7 +61,7 @@ func (h *Repository) Reservation(w http.ResponseWriter, r *http.Request) {
 	data := make(map[string]interface{})
 	data["reservation"] = emptyReservation
 
-	render.RenderTemplate(w, r, "make-reservation.html", &models.TemplateData{
+	render.Template(w, r, "make-reservation.html", &models.TemplateData{
 		Form: forms.New(nil),
 		Data: data,
 	})
@@ -68,11 +75,37 @@ func (h *Repository) PostReservation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	sd := r.Form.Get("start_date")
+	ed := r.Form.Get("end_date")
+
+	// 2020-02-01 -- 01/02 03:04:05PM `06 -0700
+
+	layout := "2006-01-02"
+	startDate, err := time.Parse(layout, sd)
+	if err != nil {
+		helpers.ServerError(w, err)
+		return
+	}
+	endDate, err := time.Parse(layout, ed)
+	if err != nil {
+		helpers.ServerError(w, err)
+		return
+	}
+
+	roomID, err := strconv.Atoi(r.Form.Get("room_id"))
+	if err != nil {
+		helpers.ServerError(w, err)
+		return
+	}
+
 	reservation := models.Reservation{
 		FirstName: r.Form.Get("first_name"),
 		LastName:  r.Form.Get("last_name"),
 		Phone:     r.Form.Get("phone"),
 		Email:     r.Form.Get("email"),
+		StartDate: startDate,
+		EndDate:   endDate,
+		RoomID:    roomID,
 	}
 
 	form := forms.New(r.PostForm)
@@ -85,10 +118,30 @@ func (h *Repository) PostReservation(w http.ResponseWriter, r *http.Request) {
 		data := make(map[string]interface{})
 		data["reservation"] = reservation
 
-		render.RenderTemplate(w, r, "make-reservation.html", &models.TemplateData{
+		render.Template(w, r, "make-reservation.html", &models.TemplateData{
 			Form: form,
 			Data: data,
 		})
+		return
+	}
+
+	newReservationID, err := h.DB.InsertReservation(reservation)
+	if err != nil {
+		helpers.ServerError(w, err)
+		return
+	}
+
+	restriction := models.RoomRestriction{
+		RoomID:        roomID,
+		ReservationID: newReservationID,
+		RestrictionID: 1,
+		StartDate:     startDate,
+		EndDate:       endDate,
+	}
+
+	err = h.DB.InsertRoomRestriction(restriction)
+	if err != nil {
+		helpers.ServerError(w, err)
 		return
 	}
 
@@ -98,7 +151,7 @@ func (h *Repository) PostReservation(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Repository) Availability(w http.ResponseWriter, r *http.Request) {
-	render.RenderTemplate(w, r, "search-availability.html", &models.TemplateData{})
+	render.Template(w, r, "search-availability.html", &models.TemplateData{})
 }
 
 func (h *Repository) PostAvailability(w http.ResponseWriter, r *http.Request) {
@@ -130,15 +183,15 @@ func (h *Repository) AvailabilityJSON(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Repository) Contact(w http.ResponseWriter, r *http.Request) {
-	render.RenderTemplate(w, r, "contact.html", &models.TemplateData{})
+	render.Template(w, r, "contact.html", &models.TemplateData{})
 }
 
 func (h *Repository) Generals(w http.ResponseWriter, r *http.Request) {
-	render.RenderTemplate(w, r, "generals.html", &models.TemplateData{})
+	render.Template(w, r, "generals.html", &models.TemplateData{})
 }
 
 func (h *Repository) Majors(w http.ResponseWriter, r *http.Request) {
-	render.RenderTemplate(w, r, "majors.html", &models.TemplateData{})
+	render.Template(w, r, "majors.html", &models.TemplateData{})
 }
 
 func (h *Repository) ReservationSummary(w http.ResponseWriter, r *http.Request) {
@@ -154,7 +207,7 @@ func (h *Repository) ReservationSummary(w http.ResponseWriter, r *http.Request) 
 	data := make(map[string]interface{})
 	data["reservation"] = reservation
 
-	render.RenderTemplate(w, r, "reservation-summary.html", &models.TemplateData{
+	render.Template(w, r, "reservation-summary.html", &models.TemplateData{
 		Data: data,
 	})
 }

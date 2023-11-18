@@ -21,7 +21,7 @@ func TestAddDefaultData(t *testing.T) {
 	}
 }
 
-func TestRenderTemplate(t *testing.T) {
+func TestTemplate(t *testing.T) {
 	pathToTemplates = "./../../templates"
 	tc, err := CreateTemplateCache()
 	if err != nil {
@@ -35,13 +35,13 @@ func TestRenderTemplate(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = RenderTemplate(&ww, r, "home.html", &models.TemplateData{})
+	err = Template(&ww, r, "home.html", &models.TemplateData{})
 
 	if err != nil {
 		t.Error("error writing template to browser")
 	}
 
-	err = RenderTemplate(&ww, r, "non-existent.html", &models.TemplateData{})
+	err = Template(&ww, r, "non-existent.html", &models.TemplateData{})
 
 	if err == nil {
 		t.Error("Rendered tempate that does not exist")
