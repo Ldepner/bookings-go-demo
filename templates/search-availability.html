@@ -13,34 +13,32 @@
                 <input type="hidden" name="csrf_token" value={{.CSRFToken}}>
                 <div class="row">
                     <div class="col">
-                        <div class="mb-3">
-                            <label for="start_date" class="form-label">Starting Date</label>
-                            <input required type="date" class="form-control" id="start_date" name="start_date" aria-describedby="startDateHelp">
-                            <div id="startDateHelp" class="form-text">Enter your starting date in the form of YYYY-MM-DD</div>
-                        </div>
-                    </div>
-
-                    <div class="col">
-                        <div class="mb-3">
-                            <label for="end_date" class="form-label">Ending Date</label>
-                            <input required type="date" class="form-control" id="end_date" name="end_date" aria-describedby="endDateHelp">
-                            <div id="endDateHelp" class="form-text">Enter your ending date in the form of YYYY-MM-DD</div>
+                        <div class="row" id="reservation-dates">
+                            <div class="col-md-6">
+                                <input required class="form-control" type="text" name="start_date" placeholder="Arrival">
+                            </div>
+                            <div class="col-md-6">
+                                <input required class="form-control" type="text" name="end_date" placeholder="Departure">
+                            </div>
                         </div>
                     </div>
                 </div>
 
+                <hr>
+
                 <button type="submit" class="btn btn-primary">Search Availability</button>
             </form>
         </div>
-
-        <div class="row">
-            <div class="col">
-                <p id="myParagraph">This is some text</p>
-                <p>
-                    <button id="color-btn" class="btn btn-outline-secondary">Click me</button>
-                </p>
-            </div>
-        </div>
     </div>
 
+{{end}}
+
+{{define "js"}}
+<script>
+    const elem = document.getElementById('reservation-dates');
+    const rangePicker = new DateRangePicker(elem, {
+        format: "yyyy-mm-dd",
+        minDate: new Date(),
+    });
+</script>
 {{end}}
