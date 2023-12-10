@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"testing"
 	"time"
 )
 
@@ -24,7 +25,7 @@ var session *scs.SessionManager
 var functions = template.FuncMap{}
 var pathToTemplates = "../../templates"
 
-func getRoutes() http.Handler {
+func TestMain(m *testing.M) {
 	// what am I going to store in my session?
 	gob.Register(models.Reservation{})
 
@@ -48,7 +49,12 @@ func getRoutes() http.Handler {
 	app.UseCache = true
 	render.NewRenderer(&app)
 
-	repo := NewRepo(&app)
+	os.Exit(m.Run())
+}
+
+func getRoutes() http.Handler {
+
+	repo := NewTestRepo(&app)
 	NewHandlers(repo)
 
 	mux := chi.NewRouter()

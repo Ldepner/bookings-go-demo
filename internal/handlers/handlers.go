@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
-	"errors"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -35,6 +35,14 @@ func NewRepo(a *config.AppConfig, db *driver.DB) *Repository {
 	}
 }
 
+// NewTestRepo creates a new Repository
+func NewTestRepo(a *config.AppConfig) *Repository {
+	return &Repository{
+		App: a,
+		DB:  dbrepo.NewTestingRepo(a),
+	}
+}
+
 // NewHandlers sets the repository for the handlers
 func NewHandlers(r *Repository) {
 	Repo = r
@@ -61,13 +69,15 @@ func (h *Repository) About(w http.ResponseWriter, r *http.Request) {
 func (h *Repository) Reservation(w http.ResponseWriter, r *http.Request) {
 	res, ok := h.App.Session.Get(r.Context(), "reservation").(models.Reservation)
 	if !ok {
-		helpers.ServerError(w, errors.New("cannot get reservation from session"))
+		h.App.Session.Put(r.Context(), "error", "can't get reservation from session")
+		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 		return
 	}
 
 	room, err := h.DB.GetRoomByID(res.RoomID)
 	if err != nil {
-		helpers.ServerError(w, err)
+		h.App.Session.Put(r.Context(), "error", "can't find room")
+		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 		return
 	}
 	res.Room.RoomName = room.RoomName
@@ -93,21 +103,17 @@ func (h *Repository) Reservation(w http.ResponseWriter, r *http.Request) {
 
 func (h *Repository) PostReservation(w http.ResponseWriter, r *http.Request) {
 	reservation, ok := h.App.Session.Get(r.Context(), "reservation").(models.Reservation)
+
 	if !ok {
-		helpers.ServerError(w, errors.New("Cannot get reservation from session"))
+		h.App.Session.Put(r.Context(), "error", "can't get reservation from session")
+		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 		return
 	}
+
 	err := r.ParseForm()
-
 	if err != nil {
-		helpers.ServerError(w, err)
-		return
-	}
-
-	// 2020-02-01 -- 01/02 03:04:05PM `06 -0700
-
-	if err != nil {
-		helpers.ServerError(w, err)
+		h.App.Session.Put(r.Context(), "error", "can't parse form")
+		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 		return
 	}
 
@@ -125,6 +131,7 @@ func (h *Repository) PostReservation(w http.ResponseWriter, r *http.Request) {
 	if !form.Valid() {
 		data := make(map[string]interface{})
 		data["reservation"] = reservation
+		http.Error(w, "error message", http.StatusSeeOther)
 
 		render.Template(w, r, "make-reservation.html", &models.TemplateData{
 			Form: form,
@@ -135,7 +142,8 @@ func (h *Repository) PostReservation(w http.ResponseWriter, r *http.Request) {
 
 	newReservationID, err := h.DB.InsertReservation(reservation)
 	if err != nil {
-		helpers.ServerError(w, err)
+		h.App.Session.Put(r.Context(), "error", "can't insert reservation into DB")
+		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 		return
 	}
 
@@ -151,10 +159,12 @@ func (h *Repository) PostReservation(w http.ResponseWriter, r *http.Request) {
 
 	err = h.DB.InsertRoomRestriction(restriction)
 	if err != nil {
-		helpers.ServerError(w, err)
+		h.App.Session.Put(r.Context(), "error", "can't insert room restriction")
+		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 		return
 	}
 
+	log.Println("hello")
 	http.Redirect(w, r, "/reservation-summary", http.StatusSeeOther)
 }
 
@@ -213,6 +223,21 @@ type jsonResponse struct {
 }
 
 func (h *Repository) AvailabilityJSON(w http.ResponseWriter, r *http.Request) {
+	// need to parse request body
+	err := r.ParseForm()
+	if err != nil {
+		// can't parse form, so return appropriate json
+		resp := jsonResponse{
+			OK:      false,
+			Message: "Internal server error",
+		}
+
+		out, _ := json.MarshalIndent(resp, "", "    ")
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(out)
+		return
+	}
+
 	sd := r.Form.Get("start")
 	ed := r.Form.Get("end")
 
@@ -222,7 +247,20 @@ func (h *Repository) AvailabilityJSON(w http.ResponseWriter, r *http.Request) {
 
 	roomId, _ := strconv.Atoi(r.Form.Get("room_id"))
 
-	available, _ := h.DB.SearchAvailabilityByDatesByRoomID(startDate, endDate, roomId)
+	available, err := h.DB.SearchAvailabilityByDatesByRoomID(startDate, endDate, roomId)
+	if err != nil {
+		// can't connect to DB, so return appropriate json
+		resp := jsonResponse{
+			OK:      false,
+			Message: "Error connecting to DB",
+		}
+
+		out, _ := json.MarshalIndent(resp, "", "     ")
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(out)
+		return
+	}
+
 	resp := jsonResponse{
 		OK:        available,
 		Message:   "",
@@ -231,11 +269,7 @@ func (h *Repository) AvailabilityJSON(w http.ResponseWriter, r *http.Request) {
 		RoomId:    strconv.Itoa(roomId),
 	}
 
-	out, err := json.MarshalIndent(resp, "", "     ")
-	if err != nil {
-		helpers.ServerError(w, err)
-		return
-	}
+	out, _ := json.MarshalIndent(resp, "", "     ")
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(out)
