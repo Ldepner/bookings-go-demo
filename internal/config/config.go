@@ -2,6 +2,7 @@ package config
 
 import (
 	"github.com/alexedwards/scs/v2"
+	"github.com/ldepner/bookings/internal/models"
 	"html/template"
 	"log"
 )
@@ -14,4 +15,5 @@ type AppConfig struct {
 	UseCache      bool
 	InProduction  bool
 	Session       *scs.SessionManager
+	MailChan      chan models.MailData
 }

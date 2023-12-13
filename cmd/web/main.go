@@ -32,6 +32,18 @@ func main() {
 		log.Fatal(err)
 	}
 	defer db.SQL.Close()
+	defer close(app.MailChan)
+
+	fmt.Println("starting mail listener...")
+	ListenForMail()
+	//
+	//msg := models.MailData{
+	//	To:      "blah@blah.com",
+	//	From:    "me@here.com",
+	//	Subject: "some subject",
+	//	Content: "blah blah",
+	//}
+	//app.MailChan <- msg
 
 	fmt.Println(fmt.Sprintf("starting app on port %s", PORT))
 
@@ -51,6 +63,9 @@ func run() (*driver.DB, error) {
 	gob.Register(models.Room{})
 	gob.Register(models.Restriction{})
 
+	mailChan := make(chan models.MailData)
+	app.MailChan = mailChan
+
 	app.InProduction = false
 
 	infoLog = log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
@@ -68,7 +83,7 @@ func run() (*driver.DB, error) {
 	app.Session = session
 
 	// connect to db
-	log.Println("Connecting to database...")
+	log.Println("Connecting to database on port 5432...")
 	db, err := driver.ConnectSql("host=localhost port=5432 dbname=bookings user=bytedance password=")
 	if err != nil {
 		log.Fatal("Cannot connect to database! Dying...")
