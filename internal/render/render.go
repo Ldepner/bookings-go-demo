@@ -8,18 +8,26 @@ import (
 	"html/template"
 	"net/http"
 	"path/filepath"
+	"time"
 
 	"github.com/ldepner/bookings/internal/config"
 	"github.com/ldepner/bookings/internal/models"
 )
 
-var functions = template.FuncMap{}
+var functions = template.FuncMap{
+	"humanDate": HumanDate,
+}
 var app *config.AppConfig
 var pathToTemplates = "./templates"
 
 // NewRenderer sets the config for the render package
 func NewRenderer(a *config.AppConfig) {
 	app = a
+}
+
+// HumanDate returns time in YYYY-MM-DD format
+func HumanDate(t time.Time) string {
+	return t.Format("2006-01-02")
 }
 
 func AddDefaultData(td *models.TemplateData, r *http.Request) *models.TemplateData {
@@ -81,7 +89,7 @@ func CreateTemplateCache() (map[string]*template.Template, error) {
 	for _, page := range pages {
 		name := filepath.Base(page)
 
-		ts, err := template.New(name).Funcs(functions).ParseFiles(fmt.Sprintf("%s/%s", pathToTemplates, name), fmt.Sprintf("%s/%s", pathToTemplates, "base.html"))
+		ts, err := template.New(name).Funcs(functions).ParseFiles(fmt.Sprintf("%s/%s", pathToTemplates, name), fmt.Sprintf("%s/%s", pathToTemplates, "base.html"), fmt.Sprintf("%s/%s", pathToTemplates, "admin.html"))
 
 		if err != nil {
 			return myCache, err
