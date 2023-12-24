@@ -14,4 +14,6 @@ EXPOSE 8080
 ARG env
 ENV envValue=$env
 
-CMD ["sh", "-c", "./docker-run-${envValue}.sh"]
+# This is overwritten on deployment for production
+# ./bookings -dbname=bookings_ge86 -dbuser=lld -dbpass=mZS0Jcw6yAfriKCqRo7x17INg1Nvq4Pc -dbhost=dpg-cm45pqun7f5s73btffb0-a -cache=false
+CMD ./bookings -dbname=bookings -dbuser=bytedance -dbhost=host.docker.internal -cache=false -production=false
