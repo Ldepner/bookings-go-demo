@@ -32,21 +32,13 @@ var theTests = []struct {
 	{"sa", "/search-availability", "GET", http.StatusOK},
 	{"contact", "/contact", "GET", http.StatusOK},
 	{"mr", "/make-reservation", "GET", http.StatusOK},
-
-	//{"post-search-avail", "/search-availability", "POST", []postData{
-	//	{key: "start", value: "2020-01-01"},
-	//	{key: "end", value: "2020-01-02"},
-	//}, http.StatusOK},
-	//{"post-search-avail-json", "/search-availability-json", "POST", []postData{
-	//	{key: "start", value: "2020-01-01"},
-	//	{key: "end", value: "2020-01-02"},
-	//}, http.StatusOK},
-	//{"make-reservation", "/make-reservation", "POST", []postData{
-	//	{key: "first_name", value: "John"},
-	//	{key: "last_name", value: "Smith"},
-	//	{key: "email", value: "me@here.com"},
-	//	{key: "phone", value: "07890123456"},
-	//}, http.StatusOK},
+	{"non-existent", "/non-existent", "GET", http.StatusNotFound},
+	{"login", "/user/login", "GET", http.StatusOK},
+	{"logout", "/user/logout", "GET", http.StatusOK},
+	{"dashboard", "/admin/dashboard", "GET", http.StatusOK},
+	{"new res", "/admin/reservations-new", "GET", http.StatusOK},
+	{"all res", "/admin/reservations-all", "GET", http.StatusOK},
+	{"show res", "/admin/reservations/cal/1/show", "GET", http.StatusOK},
 }
 
 func TestHandlers(t *testing.T) {
@@ -264,6 +256,73 @@ func TestRepository_AvailabilityJSON(t *testing.T) {
 	err := json.Unmarshal([]byte(rr.Body.String()), &j)
 	if err != nil {
 		t.Error("failed to parse json")
+	}
+}
+
+var loginTests = []struct {
+	name               string
+	email              string
+	expectedStatusCode int
+	expectedHTML       string
+	expectedLocation   string
+}{
+	{
+		"valid-credentials",
+		"me@here.ca",
+		http.StatusSeeOther,
+		"",
+		"/",
+	},
+	{
+		"invalid-credentials",
+		"invalid@here.com",
+		http.StatusSeeOther,
+		"",
+		"/user/login",
+	},
+	{
+		"invalid-email",
+		"j",
+		http.StatusOK,
+		"action=\"/user/login\"",
+		"",
+	},
+}
+
+func TestLogin(t *testing.T) {
+	for _, e := range loginTests {
+		postedData := url.Values{}
+		postedData.Add("email", e.email)
+		postedData.Add("password", "password")
+
+		req, _ := http.NewRequest("POST", "/user/login", strings.NewReader(postedData.Encode()))
+		ctx := getCtx(req)
+		req = req.WithContext(ctx)
+
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+		handler := http.HandlerFunc(Repo.PostShowLogin)
+
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != e.expectedStatusCode {
+			t.Errorf("PostShowLogin handler returned wrong response code for %s: got %d, wanted %d", e.name, rr.Code, e.expectedStatusCode)
+		}
+
+		if e.expectedLocation != "" {
+			actualLoc, _ := rr.Result().Location()
+			if actualLoc.String() != e.expectedLocation {
+				t.Errorf("failed %s, expected location %s but got %s", e.name, e.expectedLocation, actualLoc.String())
+			}
+		}
+
+		if e.expectedHTML != "" {
+			html := rr.Body.String()
+			if !strings.Contains(html, e.expectedHTML) {
+				t.Errorf("failed %s, expected to find %s but did not", e.name, e.expectedHTML)
+			}
+		}
 	}
 }
 
