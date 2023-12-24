@@ -1,1 +1,1 @@
-./bookings -dbname=bookings -dbuser=bytedance -cache=false -production=false
+./bookings -dbname=bookings -dbuser=bytedance -dbhost=host.docker.internal -cache=false -production=false
