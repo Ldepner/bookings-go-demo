@@ -1,0 +1,21 @@
+development:
+  dialect: postgres
+  database: bookings
+  user: bytedance
+  password:
+  host: host.docker.internal
+  pool: 5
+
+local:
+  dialect: postgres
+  database: bookings
+  user: bytedance
+  password:
+  host: localhost
+  pool: 5
+
+test:
+  url: {{envOr "TEST_DATABASE_URL" "postgres://postgres:postgres@127.0.0.1:5432/myapp_test"}}
+
+production:
+  url: postgres://lld:mZS0Jcw6yAfriKCqRo7x17INg1Nvq4Pc@dpg-cm45pqun7f5s73btffb0-a.frankfurt-postgres.render.com/bookings_ge86
