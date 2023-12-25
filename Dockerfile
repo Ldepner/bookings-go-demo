@@ -13,6 +13,11 @@ EXPOSE 8080
 COPY . .
 RUN go build -o bookings ./cmd/web/
 
+ARG env=development
+RUN echo $env
+
+RUN soda migrate -e ${env}
+
 # This is overwritten on deployment for production
 # ./bookings -dbname=bookings_ge86 -dbuser=lld -dbpass=mZS0Jcw6yAfriKCqRo7x17INg1Nvq4Pc -dbhost=dpg-cm45pqun7f5s73btffb0-a -cache=false
 CMD ./bookings -dbname=bookings -dbuser=bytedance -dbhost=host.docker.internal -cache=false -production=false
